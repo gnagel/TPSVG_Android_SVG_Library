@@ -12,12 +12,11 @@ import android.view.View;
 
 
 public class SVGView extends View {
-
 	@SuppressWarnings("unused")
 	private static final String	LOGTAG				= SVGView.class.getSimpleName();
 
 
-	Canvas						mCanvas;
+	private Canvas				mCanvas;
 
 
 	private ITpsvgController	mController;
@@ -26,22 +25,22 @@ public class SVGView extends View {
 	private final Paint			mDrawPaint			= new Paint();
 
 
-	boolean						mEntireRedrawNeeded	= false;
+	private boolean				mEntireRedrawNeeded	= false;
 
 
 	private boolean				mFill				= false;
 
 
-	Bitmap						mRenderBitmap		= null;
+	private Bitmap				mRenderBitmap		= null;
 
 
 	private int					mRotation			= 0;
 
 
-	private SVGParserRenderer	mSvgImage;
+	private SVGParserRenderer	mSvgImage			= null;
 
 
-	String						subtree				= null;
+	private String				subtree				= null;
 
 
 	// Tried using WeakReference<Bitmap> to avoid View-Bitmap memory leak issues, but this seems
@@ -64,6 +63,7 @@ public class SVGView extends View {
 		init(context);
 
 		if (isInEditMode()) {
+			mSvgImage = new SVGParserRenderer();
 			return;
 		}
 
@@ -74,18 +74,14 @@ public class SVGView extends View {
 			array.recycle();
 		}
 
-		if (0 == raw_resource) {
-			return;
+		if (0 != raw_resource) {
+			setImageSvg(raw_resource);
 		}
-
-		final SVGParserRenderer image = new SVGParserRenderer(context, raw_resource);
-		this.setSVGRenderer(image, null);
-		this.setBackgroundColor(Color.TRANSPARENT);
 	}
 
 
 	private void assertValidSvgImage() {
-		if (mSvgImage == null) {
+		if (mSvgImage == null && !isInEditMode()) {
 			throw new IllegalStateException("The parsed SVG image object needs to be specified first.");
 		}
 	}
@@ -208,17 +204,26 @@ public class SVGView extends View {
 	}
 
 
+	public void setImageSvg(final int raw_resource) {
+		final SVGParserRenderer image = SVGParserFactory.create(getContext(), raw_resource);
+		this.setSVGRenderer(image, null);
+		this.setBackgroundColor(Color.TRANSPARENT);
+	}
+
+
 	/**
 	 * Specify the particular subtree (or 'node') of the original SVG XML file that this view
 	 * shall render. The default is null, which results in the entire SVG image being rendered.
 	 * 
 	 * @param nodeId
 	 */
+	@Deprecated
 	public void setSubtree(final String subtreeId) {
 		subtree = subtreeId;
 	}
 
 
+	@Deprecated
 	public void setSVGRenderer(final SVGParserRenderer image, final String subtreeTagName) {
 		mSvgImage = image;
 		setSubtree(subtreeTagName);
