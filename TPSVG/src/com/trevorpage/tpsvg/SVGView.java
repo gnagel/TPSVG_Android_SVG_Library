@@ -7,13 +7,52 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.View;
 
 
 public class SVGView extends View {
 	@SuppressWarnings("unused")
-	private static final String	LOGTAG				= SVGView.class.getSimpleName();
+	private static final String	LOGTAG	= SVGView.class.getSimpleName();
+
+
+	public static Bitmap loadBitmapFromView(final Context context, final int raw_resource) {
+		Bitmap bitmap = null;
+		final SVGView view = new SVGView(context);
+		view.setImageSvg(raw_resource);
+
+		bitmap = view.getBitmap();
+		if (null != bitmap) {
+			return bitmap;
+		}
+
+		view.measure(
+				MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+				MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+		view.layout(
+				0,
+				0,
+				view.getMeasuredWidth(),
+				view.getMeasuredHeight());
+
+		bitmap = Bitmap.createBitmap(
+				view.getMeasuredWidth(),
+				view.getMeasuredHeight(),
+				Bitmap.Config.ARGB_8888);
+
+		final Canvas canvas = new Canvas(bitmap);
+		view.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
+		view.draw(canvas);
+		return bitmap;
+	}
+
+
+	public static Drawable loadDrawableFromView(final Context context, final int raw_resource) {
+		final Bitmap bitmap = loadBitmapFromView(context, raw_resource);
+		return new BitmapDrawable(bitmap);
+	}
 
 
 	private Canvas				mCanvas;
@@ -40,12 +79,12 @@ public class SVGView extends View {
 	private SVGParserRenderer	mSvgImage			= null;
 
 
-	private String				subtree				= null;
-
-
 	// Tried using WeakReference<Bitmap> to avoid View-Bitmap memory leak issues, but this seems
 	// to lead to very frequent GC of the bitmaps, leading to terrible performance penalty.
 	// WeakReference<Bitmap> bm;
+
+	private String				subtree				= null;
+
 
 	public SVGView(final Context context) {
 		super(context);
@@ -107,6 +146,28 @@ public class SVGView extends View {
 		else { // (mode == MeasureSpec.UNSPECIFIED)
 			return getPreferredSize();
 		}
+	}
+
+
+	public Bitmap getBitmap() {
+		// Cache the SVG to a bitmap
+		setDrawingCacheEnabled(true);
+
+		// this is the important code :)
+		// Without it the view will have a dimension of 0,0 and the bitmap will be null
+		measure(
+				MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+				MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+		layout(0, 0, getMeasuredWidth(), getMeasuredHeight());
+
+		buildDrawingCache(true);
+		final Bitmap drawing_cache = getDrawingCache();
+		final Bitmap bitmap = null == drawing_cache ? null : Bitmap.createBitmap(drawing_cache);
+
+		// Clear drawing cache
+		setDrawingCacheEnabled(false);
+
+		return bitmap;
 	}
 
 
