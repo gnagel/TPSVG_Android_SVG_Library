@@ -28,6 +28,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
@@ -38,6 +39,8 @@ import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.view.View;
 
@@ -1553,6 +1556,25 @@ public class SVGParserRenderer extends DefaultHandler {
 	}
 
 
+	public Drawable paintDrawable(final Context context, final float max_height) {
+		final int view_height = (int) Math.floor(max_height);
+		final int view_width = (int) Math.floor(max_height / mRootSvgHeight * mRootSvgWidth);
+
+		final Bitmap bitmap = Bitmap.createBitmap(view_width, view_height, Bitmap.Config.ARGB_8888);
+		final Canvas canvas = new Canvas(bitmap);
+
+		paintImageToCanvas(
+				canvas,
+				null,
+				null,
+				view_width,
+				view_height,
+				false);
+
+		return new BitmapDrawable(bitmap);
+	}
+
+
 	public void paintImage(final Canvas canvas, final String groupNodeId, final View view, final ITpsvgController animHandler) {
 		paintImage(canvas, groupNodeId, view, animHandler, false);
 	}
@@ -1561,23 +1583,30 @@ public class SVGParserRenderer extends DefaultHandler {
 	public void paintImage(final Canvas canvas, final String groupNodeId, final View view, final ITpsvgController animHandler, final boolean fill) {
 
 		// animHandler = animHandler;
-		final Canvas mCanvas = canvas;
+		final int view_width = view.getWidth();
+		final int view_height = view.getHeight();
+		// setCanvasScaleToSVG(canvas, view);
+
+		paintImageToCanvas(canvas, groupNodeId, animHandler, view_width, view_height, fill);
+	}
+
+
+	private void paintImageToCanvas(final Canvas canvas, final String groupNodeId, final ITpsvgController animHandler, final int view_width, final int view_height, final boolean fill) {
+		float uniformScaleFactor;
+		if (fill) {
+			uniformScaleFactor = Math.max(view_width / mRootSvgWidth, view_height / mRootSvgHeight);
+		}
+		else {
+			uniformScaleFactor = Math.min(view_width / mRootSvgWidth, view_height / mRootSvgHeight);
+		}
+		canvas.scale(uniformScaleFactor, uniformScaleFactor);
+
+		final float excessY = view_height / mRootSvgHeight - uniformScaleFactor;
+		final float excessX = view_width - uniformScaleFactor * mRootSvgWidth;
+
 		final Path workingPath = new Path();
 		final Path carryPath = new Path();
 		int gDepth = 1;
-
-		// setCanvasScaleToSVG(mCanvas, view);
-
-		float uniformScaleFactor;
-		if (fill) {
-			uniformScaleFactor = Math.max(view.getWidth() / mRootSvgWidth, view.getHeight() / mRootSvgHeight);
-		}
-		else {
-			uniformScaleFactor = Math.min(view.getWidth() / mRootSvgWidth, view.getHeight() / mRootSvgHeight);
-		}
-		canvas.scale(uniformScaleFactor, uniformScaleFactor);
-		final float excessY = view.getHeight() / mRootSvgHeight - uniformScaleFactor;
-		final float excessX = view.getWidth() - uniformScaleFactor * mRootSvgWidth;
 
 		codePtr = 0;
 		// TBD: I think that previous Matrix is remaining attached to something, so have to instance
@@ -1681,7 +1710,7 @@ public class SVGParserRenderer extends DefaultHandler {
 								currentFillPaint.getShader().setLocalMatrix(copyShaderMatrix);
 							}
 
-							mCanvas.drawPath(workingPath, currentFillPaint);
+							canvas.drawPath(workingPath, currentFillPaint);
 							if (shaderMatrix != null) {
 								currentFillPaint.getShader().setLocalMatrix(shaderMatrix); // Restore shader's original Matrix
 							}
@@ -1702,7 +1731,7 @@ public class SVGParserRenderer extends DefaultHandler {
 
 							Matrix copyShaderMatrix = null;
 
-							// TODO: Does this block now go after the mCanvas.drawPath?
+							// TODO: Does this block now go after the canvas.drawPath?
 							if (currentStrokePaint.getShader() != null) {
 								shaderMatrix = new Matrix();
 								currentStrokePaint.getShader().getLocalMatrix(shaderMatrix);
@@ -1711,7 +1740,7 @@ public class SVGParserRenderer extends DefaultHandler {
 								currentStrokePaint.getShader().setLocalMatrix(copyShaderMatrix);
 							}
 
-							mCanvas.drawPath(workingPath, currentStrokePaint);
+							canvas.drawPath(workingPath, currentStrokePaint);
 							currentStrokePaint.setStrokeWidth(storedStrokeWidth);
 						}
 
@@ -1791,23 +1820,23 @@ public class SVGParserRenderer extends DefaultHandler {
 							}
 						}
 
-						mCanvas.save();
-						mCanvas.concat(animMatrix);
-						mCanvas.concat(workingMatrix);
+						canvas.save();
+						canvas.concat(animMatrix);
+						canvas.concat(workingMatrix);
 
 						if (currentStrokePaint != null) {
 
-							mCanvas.drawText(ts.string, 0, ts.string.length(), ts.x, ts.y, currentStrokePaint);
-							// mCanvas.drawText(ts.string, 0, ts.string.length(), ts.x + matrixValues[Matrix.MTRANS_X], ts.y + matrixValues[Matrix.MTRANS_Y], currentStrokePaint);
+							canvas.drawText(ts.string, 0, ts.string.length(), ts.x, ts.y, currentStrokePaint);
+							// canvas.drawText(ts.string, 0, ts.string.length(), ts.x + matrixValues[Matrix.MTRANS_X], ts.y + matrixValues[Matrix.MTRANS_Y], currentStrokePaint);
 						}
 						if (currentFillPaint != null) {
 
-							mCanvas.drawText(ts.string, 0, ts.string.length(), ts.x, ts.y, currentFillPaint);
-							// mCanvas.drawText(ts.string, 0, ts.string.length(), ts.x + matrixValues[Matrix.MTRANS_X], ts.y + matrixValues[Matrix.MTRANS_Y], currentFillPaint);
+							canvas.drawText(ts.string, 0, ts.string.length(), ts.x, ts.y, currentFillPaint);
+							// canvas.drawText(ts.string, 0, ts.string.length(), ts.x + matrixValues[Matrix.MTRANS_X], ts.y + matrixValues[Matrix.MTRANS_Y], currentFillPaint);
 
 						}
 
-						mCanvas.restore();
+						canvas.restore();
 					}
 					while (doSpecialIdCallbackForNextElement == true);
 
