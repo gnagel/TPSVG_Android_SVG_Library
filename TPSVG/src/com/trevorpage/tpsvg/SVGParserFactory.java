@@ -103,7 +103,7 @@ final class SVGParserFactoryLruMap extends LinkedHashMap<Integer, SVGParserFacto
 	@Override
 	protected boolean removeEldestEntry(final Map.Entry<Integer, SVGParserFactoryLruPair> eldest)
 	{
-		if (size() > _maxEntries) {
+		if (size() > _maxEntries && _maxEntries != -1) {
 			return true;
 		}
 
