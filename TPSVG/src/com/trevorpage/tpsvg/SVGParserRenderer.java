@@ -41,7 +41,6 @@ import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.util.Log;
 import android.view.View;
 
 
@@ -204,6 +203,11 @@ public class SVGParserRenderer extends DefaultHandler {
 			this.idstringListPosition = idstringListPosition;
 			this.arcsListPosition = arcsListPosition;
 		}
+	}
+
+
+	public static interface ILogSVGTiming {
+		public void logSvgTiming(String path, long time_ms);
 	}
 
 
@@ -647,6 +651,9 @@ public class SVGParserRenderer extends DefaultHandler {
 	static float				lastControlPointY			= 0;
 
 
+	public static ILogSVGTiming	LOG_TIMING					= null;
+
+
 	private static final String	LOGTAG						= "SVGParserRenderer";
 
 
@@ -783,14 +790,6 @@ public class SVGParserRenderer extends DefaultHandler {
 	private final boolean[]					matrixExistsAtDepth		= new boolean[20];
 
 
-	// Lists and stacks for executable code
-	ArrayList<Matrix>						matrixList				= new ArrayList<Matrix>();
-
-
-	// Used by code evaluator:
-	Iterator<Matrix>						matrixListIterator;
-
-
 	// TODO:
 	// Possibly use sequence like
 	// new SVGParserRenderer(...).setApplicationNamespace(...).render();
@@ -812,6 +811,14 @@ public class SVGParserRenderer extends DefaultHandler {
 	 * parseImageFile(context, sourceStream);
 	 * }
 	 */
+
+	// Lists and stacks for executable code
+	ArrayList<Matrix>						matrixList				= new ArrayList<Matrix>();
+
+
+	// Used by code evaluator:
+	Iterator<Matrix>						matrixListIterator;
+
 
 	float[]									matrixValues			= new float[9];
 
@@ -1330,6 +1337,10 @@ public class SVGParserRenderer extends DefaultHandler {
 	}
 
 
+	// The valueTokenizer is used for:
+	// - parsing 'transform' attribute string
+	// - parsing rgb(r,g,b) colour string
+
 	private void finaliseRadialGradient() {
 
 		if (currentGradient.stopColours.size() > 0) {
@@ -1379,9 +1390,8 @@ public class SVGParserRenderer extends DefaultHandler {
 	}
 
 
-	// The valueTokenizer is used for:
-	// - parsing 'transform' attribute string
-	// - parsing rgb(r,g,b) colour string
+	// ----------------------------------------------------------------------------------
+	// Scaling and measurement related methods
 
 	/**
 	 * Obtain the width specified in the SVG image file. It should be specified in
@@ -1408,13 +1418,13 @@ public class SVGParserRenderer extends DefaultHandler {
 	}
 
 
-	// ----------------------------------------------------------------------------------
-	// Scaling and measurement related methods
-
 	public String getPrivateDataValue(final String key) {
 		return mPrivateDataMap.get(key);
 	}
 
+
+	// -------------------------------------------------------------------------------------
+	// Code-sequence build functions
 
 	/**
 	 * Obtain a Tyepface from the assets fonts directory for the given name.
@@ -1446,9 +1456,6 @@ public class SVGParserRenderer extends DefaultHandler {
 
 	}
 
-
-	// -------------------------------------------------------------------------------------
-	// Code-sequence build functions
 
 	private void gradientStyle() {
 		final Map<String, String> map = new HashMap<String, String>();
@@ -1864,6 +1871,9 @@ public class SVGParserRenderer extends DefaultHandler {
 	}
 
 
+	// ------------------------------------------------------------------------------
+	// Associated with user's handler
+
 	private void parseAttributes(final Attributes attributes) {
 
 		String v;
@@ -2085,6 +2095,8 @@ public class SVGParserRenderer extends DefaultHandler {
 	}
 
 
+	// ------------------------------------------------------------------------------
+
 	private void parseAttributeValuePairsIntoMap(final Map<String, String> map) {
 		// Typical format is:
 		// font-size:40px;font-style:normal;font-variant:normal; ...
@@ -2095,9 +2107,6 @@ public class SVGParserRenderer extends DefaultHandler {
 		}
 	}
 
-
-	// ------------------------------------------------------------------------------
-	// Associated with user's handler
 
 	private int parseAttributeValuePairsIntoSaxAttributesImpl(final AttributesImpl attr) {
 		int quantityAdded = 0;
@@ -2110,8 +2119,6 @@ public class SVGParserRenderer extends DefaultHandler {
 		return quantityAdded;
 	}
 
-
-	// ------------------------------------------------------------------------------
 
 	private float parseAttrValueFloat(final String value) {
 		float f = 0f;
@@ -2176,17 +2183,9 @@ public class SVGParserRenderer extends DefaultHandler {
 
 		final long end_time = System.currentTimeMillis();
 
-		if (ga_debug) {
-			Log.v(context.getPackageName(),
-					String.format(
-							"[%s] Parsed SVG File (%s) in %d ms",
-							getClass().getSimpleName(),
-							sourceFile.getPath(),
-							end_time - start_time
-							)
-					);
+		if (null != LOG_TIMING) {
+			LOG_TIMING.logSvgTiming(sourceFile.getPath(), end_time - start_time);
 		}
-
 	}
 
 
@@ -2249,15 +2248,8 @@ public class SVGParserRenderer extends DefaultHandler {
 
 		final long end_time = System.currentTimeMillis();
 
-		if (ga_debug) {
-			Log.v(context.getPackageName(),
-					String.format(
-							"[%s] Parsed SVG File (%s) in %d ms",
-							getClass().getSimpleName(),
-							resources.getResourceName(resourceID),
-							end_time - start_time
-							)
-					);
+		if (null != LOG_TIMING) {
+			LOG_TIMING.logSvgTiming(resources.getResourceName(resourceID), end_time - start_time);
 		}
 	}
 
